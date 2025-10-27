@@ -1,0 +1,63 @@
+{
+    "timestamp": "2025-10-27T11:28:30.083096",
+    "total_pages": 4496,
+    "languages": {
+        "en": 4358,
+        "de": 72,
+        "fr": 33,
+        "ru": 24,
+        "it": 8,
+        "unknown": 1
+    },
+    "average_sentiment": 0.14579192615658362,
+    "daily_trends": [
+        {
+            "date": "2025-10-18",
+            "pages": 564,
+            "unique_domains": 151,
+            "average_sentiment": 0.152
+        },
+        {
+            "date": "2025-10-21",
+            "pages": 592,
+            "unique_domains": 170,
+            "average_sentiment": 0.147
+        },
+        {
+            "date": "2025-10-22",
+            "pages": 571,
+            "unique_domains": 158,
+            "average_sentiment": 0.144
+        },
+        {
+            "date": "2025-10-23",
+            "pages": 535,
+            "unique_domains": 153,
+            "average_sentiment": 0.147
+        },
+        {
+            "date": "2025-10-24",
+            "pages": 555,
+            "unique_domains": 169,
+            "average_sentiment": 0.146
+        },
+        {
+            "date": "2025-10-25",
+            "pages": 558,
+            "unique_domains": 171,
+            "average_sentiment": 0.147
+        },
+        {
+            "date": "2025-10-26",
+            "pages": 552,
+            "unique_domains": 166,
+            "average_sentiment": 0.143
+        },
+        {
+            "date": "2025-10-27",
+            "pages": 569,
+            "unique_domains": 170,
+            "average_sentiment": 0.14
+        }
+    ]
+}
