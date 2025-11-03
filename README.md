@@ -130,16 +130,4 @@ Each page connects to the corresponding FastAPI endpoint and displays analytics 
 | **ML/NLP** | Scikit-learn, NLTK, spaCy |
 | **Visualization** | Recharts, Plotly, or Chart.js |
 
-
----
-
-## 🧩 Future Enhancements
-
-- Add **user authentication** and role-based analytics access.  
-- Integrate **Celery + Redis** for background scraping tasks.  
-- Implement **graph-based link clustering** for deep web relationships.  
-- Real-time **socket updates** for live pipeline monitoring.  
-
----
-
 🗓️ *Last updated:* 2025-11-03
