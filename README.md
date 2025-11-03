@@ -1,50 +1,145 @@
-# 🕵️‍♂️ Dark Web Data Pipeline
+# 🕵️‍♂️ Dark Web Data Pipeline — v2.0  
 
-This project is a **modular and extensible data pipeline** designed to **collect, scrape, process, and analyze** `.onion` (dark web) URLs.  
-It automates the complete workflow — from **data collection to advanced analytics** — enabling efficient monitoring, pattern discovery, and research on the dark web ecosystem.
-
----
-
-## 🚀 Pipeline Overview
-
-The pipeline consists of **two major stages**:
-
-### 1. 🧩 Core Data Processing (in `scripts/`)
-1. **🔗 Collect Onion Links**  
-   * **Script:** `collect_links.py`  
-   * **Description:** Crawls and gathers `.onion` URLs from predefined sources or seed lists.  
-   * **Output:** `links_<date>.json` inside the `links/` folder.
-
-2. **🧠 Scrape Onion Data**  
-   * **Script:** `scrape_data.py`  
-   * **Description:** Extracts titles, descriptions, and metadata from collected links.  
-   * **Output:** `scraped_<date>.json` inside the `scraped/` folder.
-
-3. **⚙️ Process Fingerprints (ML Classification)**  
-   * **Script:** `process_fingerprints.py`  
-   * **Description:** Cleans scraped data, generates content fingerprints, and classifies links using ML/NLP techniques.  
-   * **Output:** `fingerprints_<date>.json` inside the `fingerprints/` folder.
-
-4. **📚 Group Links by Title**  
-   * **Script:** `filter_by_title.py`  
-   * **Description:** Identifies pages sharing the same title across multiple onion links (useful for detecting mirrors or clones).  
-   * **Output:** `grouped_titles_<date>.json` inside the `grouped_titles/` folder.
+This project is a **fully automated data pipeline** designed to **collect, scrape, preprocess, and analyze** `.onion` (dark web) URLs.  
+It integrates **FastAPI**, **MongoDB**, and a **React + TailwindCSS dashboard** to automate and visualize the entire dark web intelligence workflow — from raw data collection to advanced analytics.
 
 ---
 
-### 2. 📊 Analytics & Insights (in `analytics/`)
-After processing, the data flows into the **Analytics Layer**, which generates statistical, behavioral, and semantic insights about the collected domains.
+## 🚀 Overview  
+
+The system operates as a **modular, end-to-end data pipeline**, now enhanced with:
+- ✅ **Automated ETL (Extract, Transform, Load)** into MongoDB  
+- ✅ **FastAPI backend** for on-demand analytics  
+- ✅ **Interactive React dashboard** for visualization and monitoring  
+- ✅ **Scheduled scraping and preprocessing pipeline**
+
+---
+
+## ⚙️ System Architecture  
+
+```
+        ┌──────────────────────────┐
+        │     React Dashboard      │
+        │ (Tailwind + Recharts UI) │
+        └────────────┬─────────────┘
+                     │ REST API Calls
+                     ▼
+        ┌──────────────────────────┐
+        │         FastAPI          │
+        │   - /pipeline routes     │
+        │   - /analytics routes    │
+        └────────────┬─────────────┘
+                     │
+        ┌──────────────────────────┐
+        │       Python Scripts     │
+        │  (Scraping + Analytics)  │
+        └────────────┬─────────────┘
+                     │
+        ┌──────────────────────────┐
+        │         MongoDB          │
+        │ (Storage + Aggregation)  │
+        └──────────────────────────┘
+```
+
+---
+
+## 🧩 Core Pipeline (in `scripts/`)
+
+| Stage | Script | Description | Output |
+|--------|---------|-------------|---------|
+| 🔗 **Collect Onion Links** | `collect_links.py` | Crawls and gathers `.onion` URLs from seed sources. | `links/links_<date>.json` |
+| 🧠 **Scrape Onion Data** | `scrape_data.py` | Extracts titles, metadata, and content from collected links. | `scraped/scraped_<date>.json` |
+| ⚙️ **Process Fingerprints (ML Classification)** | `process_fingerprints.py` | Cleans and classifies scraped data using NLP/ML techniques. | `fingerprints/fingerprints_<date>.json` |
+| 📚 **Group Links by Title** | `filter_by_title.py` | Identifies pages with duplicate titles to detect mirrors/clones. | `grouped_titles/grouped_titles_<date>.json` |
+
+### 🔄 Automation Added
+All above stages are now **automated**:
+- Each stage runs sequentially on a single **button click** from the dashboard.
+- Outputs are **directly stored in MongoDB**.
+- Status and logs are viewable from the FastAPI or frontend console.
+
+---
+
+## ⚡ FastAPI Backend  
+
+The backend exposes modular routes for:
+
+### 🔧 `pipeline/` routes  
+Handle scraping, processing, and data insertion into MongoDB.  
+Triggered from frontend buttons or scheduled cron jobs.
+
+### 📊 `analytics/` routes  
+Provide analytical insights through on-demand API calls.
+
+These include routes for:
+- `/keywords` → Keyword Trends  
+- `/repeated-domains` → Repeated or Mirrored Domains  
+- `/source-summary` → Source Distribution Summary  
+- `/time-trends` → Time-based Trends  
+- `/site-evolution` → Site Evolution Analysis  
+
+All routes are registered in the main FastAPI app:
+```
+app.include_router(pipeline.router)
+app.include_router(analytics.router)
+```
+
+---
+
+## 💻 Frontend Dashboard (React + TailwindCSS)
+
+A **modern, responsive dashboard** for controlling the pipeline and viewing analytics.  
+
+### 🧱 Pages
+The React dashboard has **five key pages**, defined as:
+
+```javascript
+const navItems = [
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/keywords', icon: TrendingUp, label: 'Keyword Trends' },
+  { path: '/titles', icon: FileText, label: 'Grouped Titles' },
+  { path: '/sources', icon: Globe, label: 'Source Summary' },
+  { path: '/trends', icon: Activity, label: 'Time Trends' },
+];
+```
+
+Each page connects to the corresponding FastAPI endpoint and displays analytics results using Recharts.
+
+---
+
+## 📊 Analytics Modules (in `analytics/`)
 
 | Script | Description | Output |
-| ------- | ------------ | ------- |
-| `generate_reports.py` | Compiles all individual analytics outputs into a master report. | `reports/master_report_<date>.json` |
-| `keyword_trends.py` | Detects frequently used keywords and topic clusters across scraped content. | `reports/keyword_trends_<date>.json` |
-| `domain_activity.py` | Tracks active/inactive onion domains and uptime trends. | `reports/domain_activity_<date>.json` |
-| `sentiment_trends.py` | Analyzes sentiment patterns in textual content over time. | `reports/sentiment_trends_<date>.json` |
-| `category_stats.py` | Generates statistics for classified site categories (forums, markets, etc.). | `reports/category_stats_<date>.json` |
-| `repeated_domains.py` | Detects repeated or mirrored onion domains. | `reports/repeated_domains_<date>.json` |
-| `domain_url_activity.py` | Maps URL-level activity (homepages, subpages, redirects). | `reports/domain_url_activity_<date>.json` |
-| `same_site_evolution.py` | Tracks how a site's content or title evolves across snapshots. | `reports/same_site_evolution_<date>.json` |
+|---------|--------------|---------|
+| `keyword_trends.py` | Detects trending keywords and topic clusters. | `reports/keyword_trends_<date>.json` |
+| `repeated_domains.py` | Finds mirrored or duplicate domains. | `reports/repeated_domains_<date>.json` |
+| `source_summary.py` | Summarizes link sources and categories. | `reports/source_summary_<date>.json` |
+| `evolution_trends.py` | Tracks site or content changes over time. | `reports/site_evolution_<date>.json` |
+| `category_stats.py` | Category-wise statistics (markets, forums, etc.). | `reports/category_stats_<date>.json` |
 
 ---
 
+## 🧠 Tech Stack
+
+| Layer | Technologies |
+|--------|--------------|
+| **Frontend** | React, Tailwind CSS, Recharts |
+| **Backend** | FastAPI |
+| **Database** | MongoDB |
+| **Automation** | Python (Requests, BeautifulSoup, asyncio) |
+| **ML/NLP** | Scikit-learn, NLTK, spaCy |
+| **Visualization** | Recharts, Plotly, or Chart.js |
+
+
+---
+
+## 🧩 Future Enhancements
+
+- Add **user authentication** and role-based analytics access.  
+- Integrate **Celery + Redis** for background scraping tasks.  
+- Implement **graph-based link clustering** for deep web relationships.  
+- Real-time **socket updates** for live pipeline monitoring.  
+
+---
+
+🗓️ *Last updated:* 2025-11-03
