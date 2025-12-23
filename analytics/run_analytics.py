@@ -5,11 +5,14 @@ from datetime import datetime
 ANALYTICS_SCRIPTS = [
     "generate_reports.py",
     "keyword_trends.py",
-    "domain_activity.py",
-    "sentiment_trends.py",
-    "category_stats.py",
-    "repeated_domains.py"
+    # "domain_activity.py",
+    # "sentiment_trends.py",
+    # "category_stats.py",
+    "repeated_domains.py",
+    # "domain_url_activity.py",
+    "same_site_evolution.py"  # 👈 add this line
 ]
+
 
 def run_script(script_name):
     script_path = os.path.join("analytics", script_name)

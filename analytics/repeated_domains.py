@@ -1,23 +1,34 @@
 import os
 import json
 import pandas as pd
-from urllib.parse import urlparse
-from utils import load_flattened_fingerprints
+from analytics.utils import load_flattened_fingerprints
 
 def repeated_domains_analysis():
+    """Analyze repeated titles (instead of domains) across multiple days."""
     data = load_flattened_fingerprints()
+    if not data:
+        print("[!] No data found.")
+        return []
+
     df = pd.DataFrame(data)
 
-    # Clean and prepare
+    if "collected_at" not in df or "title" not in df:
+        print("[!] Missing 'collected_at' or 'title' fields.")
+        return []
+
     df["collected_at"] = pd.to_datetime(df["collected_at"], errors="coerce")
     df["date"] = df["collected_at"].dt.date
-    df["domain"] = df["url"].apply(lambda u: urlparse(u).netloc if isinstance(u, str) else None)
 
-    df = df.dropna(subset=["domain", "date"])
+    df = df.dropna(subset=["title", "date"])
+    df["title"] = df["title"].str.strip()
 
-    # Group by domain to see on how many unique days it appeared
-    domain_stats = (
-        df.groupby("domain")
+    if df.empty:
+        print("[!] No valid title data.")
+        return []
+
+    # Group by title to find repeated appearances
+    title_stats = (
+        df.groupby("title")
         .agg(
             total_appearances=("date", "count"),
             unique_days=("date", pd.Series.nunique),
@@ -29,24 +40,18 @@ def repeated_domains_analysis():
         .sort_values(by="unique_days", ascending=False)
     )
 
+    # Filter titles that appeared on more than one day
+    repeated_titles = title_stats[title_stats["unique_days"] > 1]
+
     os.makedirs("reports", exist_ok=True)
-    csv_path = "reports/repeated_domains.csv"
-    json_path = "reports/repeated_domains.json"
+    json_path = "reports/repeated_titles.json"
 
-    domain_stats.to_csv(csv_path, index=False)
+    repeated_titles.to_json(json_path, orient="records", indent=4, date_format="iso")
 
-    # Convert to JSON for richer data export
-    domain_stats.to_json(json_path, orient="records", indent=4, date_format="iso")
+    result = repeated_titles.to_dict(orient="records")
 
-    print(f"[+] Repeated domain analytics saved to:")
-    print(f"    • {csv_path}")
-    print(f"    • {json_path}")
-
-    # Print top recurring domains
-    print("\n🏆 Top Persistent Domains:")
-    for _, row in domain_stats.head(10).iterrows():
-        print(f"{row['domain']}: seen {row['unique_days']} days "
-              f"(first: {row['first_seen']}, last: {row['last_seen']})")
+    print(f"[+] Repeated titles analytics saved to {json_path} ({len(result)} titles found)")
+    return result
 
 if __name__ == "__main__":
     repeated_domains_analysis()
