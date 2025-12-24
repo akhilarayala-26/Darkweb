@@ -10,9 +10,11 @@ async def run_scripts(background_tasks: BackgroundTasks):
     background_tasks.add_task(task)
     return {"message": "🚀 scripts/run.py started in background"}
 
+
 @router.post("/run-analytics")
 async def run_analytics(background_tasks: BackgroundTasks):
     def task():
         execute_command("python analytics/run_analytics.py")
     background_tasks.add_task(task)
     return {"message": "📊 analytics/run_analytics.py started in background"}
+

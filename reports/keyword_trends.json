@@ -1,82 +1,82 @@
 [
     {
         "keyword": "drugs",
-        "count": 3095
-    },
-    {
-        "keyword": "forum",
-        "count": 2121
+        "count": 3394
     },
     {
         "keyword": "price",
-        "count": 2022
+        "count": 2273
     },
     {
-        "keyword": "search",
-        "count": 1836
+        "keyword": "forum",
+        "count": 2161
     },
     {
         "keyword": "rated",
-        "count": 1814
+        "count": 1980
+    },
+    {
+        "keyword": "search",
+        "count": 1872
     },
     {
         "keyword": "cart",
-        "count": 1708
+        "count": 1872
     },
     {
         "keyword": "online",
-        "count": 1656
+        "count": 1737
     },
     {
         "keyword": "sort",
-        "count": 1537
+        "count": 1643
     },
     {
         "keyword": "sale",
-        "count": 1488
+        "count": 1603
     },
     {
         "keyword": "cocaine",
-        "count": 1359
+        "count": 1490
     },
     {
         "keyword": "views",
-        "count": 1265
+        "count": 1281
     },
     {
         "keyword": "options",
-        "count": 1106
-    },
-    {
-        "keyword": "minutes",
-        "count": 1030
-    },
-    {
-        "keyword": "hacking",
-        "count": 1019
-    },
-    {
-        "keyword": "select",
-        "count": 975
-    },
-    {
-        "keyword": "threads",
-        "count": 959
+        "count": 1207
     },
     {
         "keyword": "view",
-        "count": 953
+        "count": 1072
     },
     {
-        "keyword": "forums",
-        "count": 910
+        "keyword": "select",
+        "count": 1050
+    },
+    {
+        "keyword": "minutes",
+        "count": 1046
+    },
+    {
+        "keyword": "hacking",
+        "count": 1024
+    },
+    {
+        "keyword": "threads",
+        "count": 976
+    },
+    {
+        "keyword": "quick",
+        "count": 961
     },
     {
         "keyword": "money",
-        "count": 908
+        "count": 943
     },
     {
-        "keyword": "darknet",
-        "count": 902
+        "keyword": "products",
+        "count": 932
     }
 ]
