@@ -14,7 +14,7 @@ import os
 DetectorFactory.seed = 0
 
 # MongoDB Connection
-uri = os.getenv("MONGO_URI", "mongodb+srv://reddyhashish:Hasini120@cluster0.ckmru0d.mongodb.net/capestone")
+uri = os.getenv("MONGO_URI", "")
 client = MongoClient(uri)
 db = client["darkweb_pipeline"]
 
