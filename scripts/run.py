@@ -18,7 +18,8 @@ def main():
     process_fingerprints_from_mongo()
     
     print("=== Step 4: Grouping by Title ===")
-    group_links_by_title_from_db()
+    grouped = group_links_by_title_from_db()
+    save_grouped_titles(grouped)
 
     
     print("\nAll done ✅")

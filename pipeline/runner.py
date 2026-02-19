@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime
 from db.mongo_client import db
 from utils.command_runner import execute_command
@@ -38,7 +39,7 @@ def run_pipeline():
 
         # 3️⃣ Run the actual pipeline script
         print("🚀 Starting data collection pipeline...")
-        execute_command("python scripts/run.py")
+        execute_command(f'"{sys.executable}" run.py', cwd="scripts")
 
         # 4️⃣ Update MongoDB on success
         jobs_collection.update_one(

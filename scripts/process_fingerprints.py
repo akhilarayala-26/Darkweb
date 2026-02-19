@@ -1,14 +1,13 @@
 import hashlib
 from datetime import datetime
 from collections import defaultdict
-from transformers import pipeline
 import warnings
 from pymongo import MongoClient
 import os
 
 uri = os.getenv("MONGO_URI", "mongodb+srv://reddyhashish:Hasini120@cluster0.ckmru0d.mongodb.net/capestone")
 client = MongoClient(uri)
-db = client["darkweb_pipeline"]
+db = client["darkweb_pipeline_c1"]
 
 print(f"[MongoDB] Connected to cluster: {uri.split('@')[-1].split('/')[0]}")
 print(f"[MongoDB] Using database: {db.name}")
@@ -44,7 +43,8 @@ def build_index_from_scraped(scraped_data):
 
 def get_zero_shot_classifier():
     try:
-        classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+        from transformers import pipeline as hf_pipeline
+        classifier = hf_pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
         return classifier
     except Exception as e:
         warnings.warn(f"Zero-shot model unavailable: {e}. Falling back to keyword classifier.")

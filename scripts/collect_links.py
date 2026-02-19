@@ -11,7 +11,8 @@ import os
 # ==============================
 # ✅ CONFIGURATION
 # ==============================
-SEARCH_TERMS = ["drugs forum"]
+SEARCH_TERMS = ["credit card"]
+#SEARCH_TERMS = ["weapons"]
 MAX_LINKS = 800
 
 HEADERS = {
@@ -31,7 +32,7 @@ uri = os.getenv(
 )
 
 client = MongoClient(uri)
-db = client["darkweb_pipeline"]
+db = client["darkweb_pipeline_c1"]
 collection = db["links_data"]
 
 print(f"[MongoDB] Connected to cluster: {uri.split('@')[-1].split('/')[0]}")
@@ -96,11 +97,20 @@ def collect_links():
         query = quote_plus(term)
         url = f"https://ahmia.fi/search/?q={query}{token}"
 
-        try:
-            response = requests.get(url, headers=HEADERS, timeout=15)
-            response.raise_for_status()
-        except requests.RequestException as e:
-            print(f"[!] Request failed for {term}: {e}")
+        response = None
+        for attempt in range(1, 4):
+            try:
+                response = requests.get(url, headers=HEADERS, timeout=45)
+                response.raise_for_status()
+                break
+            except requests.RequestException as e:
+                print(f"[!] Attempt {attempt}/3 failed for {term}: {e}")
+                if attempt < 3:
+                    wait = attempt * 5
+                    print(f"    Retrying in {wait}s...")
+                    time.sleep(wait)
+        if response is None or response.status_code != 200:
+            print(f"[!] All attempts failed for {term}, skipping.")
             continue
 
         soup = BeautifulSoup(response.text, "html.parser")
