@@ -4,6 +4,7 @@ from scrape_data import scrape_data
 from process_fingerprints import process_fingerprints_from_mongo
 
 from filter_by_title import group_links_by_title_from_db, save_grouped_titles
+from detect_mirrors import detect_mirrors
 
 
 def main():
@@ -21,6 +22,9 @@ def main():
     grouped = group_links_by_title_from_db()
     save_grouped_titles(grouped)
 
+    print("=== Step 5: Detecting Mirror Sites ===")
+    detect_mirrors()
+
     
     print("\nAll done ✅")
     print("MongoDB Collections Updated:")
@@ -28,6 +32,7 @@ def main():
     print("- scraped_data")
     print("- fingerprints")
     print("- grouped_titles")
+    print("- mirror_data")
 
 
 if __name__ == "__main__":

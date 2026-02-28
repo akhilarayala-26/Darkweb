@@ -7,7 +7,7 @@ import os
 
 uri = os.getenv("MONGO_URI", "mongodb+srv://reddyhashish:Hasini120@cluster0.ckmru0d.mongodb.net/capestone")
 client = MongoClient(uri)
-db = client["darkweb_pipeline_c1"]
+db = client["darkweb_pipeline_c2"]
 
 print(f"[MongoDB] Connected to cluster: {uri.split('@')[-1].split('/')[0]}")
 print(f"[MongoDB] Using database: {db.name}")
@@ -41,28 +41,7 @@ def build_index_from_scraped(scraped_data):
             index.setdefault(text_hash, []).append(record)
     return index
 
-def get_zero_shot_classifier():
-    try:
-        from transformers import pipeline as hf_pipeline
-        classifier = hf_pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-        return classifier
-    except Exception as e:
-        warnings.warn(f"Zero-shot model unavailable: {e}. Falling back to keyword classifier.")
-        return None
 
-
-DEFAULT_LABELS = [
-    "Illicit marketplace", "Drugs", "Weapons", "Fraud", "Hacking", "Exploit", "Leak",
-    "Stolen data", "Counterfeit", "Scam", "Services", "Financial services", "Guides",
-    "Forum discussion", "Carding", "Malware", "Security", "Vendor advertisement"
-]
-
-def classify_text_with_model(classifier, text, labels=DEFAULT_LABELS, multi_label=True):
-    try:
-        result = classifier(text, labels, multi_label=multi_label)
-        return [(lab, sc) for lab, sc in zip(result["labels"], result["scores"]) if sc >= 0.30]
-    except Exception:
-        return []
 
 def simple_keyword_classify(text):
     txt = text.lower()
@@ -100,10 +79,7 @@ def process_fingerprints_from_mongo():
     print(f"[*] Building fingerprint index from MongoDB scraped data ({today})...")
     index = build_index_from_scraped(scraped_data)
 
-    print("[*] Attempting to load zero-shot classifier...")
-    classifier = get_zero_shot_classifier()
-
-    # Convert to dict-based format (old style)
+    # Convert to dict-based format
     content_dict = {}
 
     for text_hash, records in index.items():
@@ -111,9 +87,7 @@ def process_fingerprints_from_mongo():
         if records:
             sample_text = records[0].get("title", "") + " " + " ".join(records[0].get("keywords", []))
 
-        labels_scores = classify_text_with_model(classifier, sample_text) if classifier else []
-        if not labels_scores:
-            labels_scores = simple_keyword_classify(sample_text)
+        labels_scores = simple_keyword_classify(sample_text)
 
         entry_data = {
             "records": records,

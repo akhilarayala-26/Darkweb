@@ -16,7 +16,7 @@ DetectorFactory.seed = 0
 # MongoDB Connection
 uri = os.getenv("MONGO_URI", "mongodb+srv://reddyhashish:Hasini120@cluster0.ckmru0d.mongodb.net/capestone")
 client = MongoClient(uri)
-db = client["darkweb_pipeline_c1"]
+db = client["darkweb_pipeline_c2"]
 
 print(f"[MongoDB] Connected to cluster: {uri.split('@')[-1].split('/')[0]}")
 print(f"[MongoDB] Using database: {db.name}")
