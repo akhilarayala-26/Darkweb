@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import pipeline, analytics
+from routes import pipeline, analytics, dashboard
 
 from scheduler import start_scheduler
 from pipeline.runner import run_pipeline
@@ -19,6 +19,7 @@ app.add_middleware(
 
 app.include_router(pipeline.router)
 app.include_router(analytics.router)
+app.include_router(dashboard.router)
 
 
 @app.on_event("startup")

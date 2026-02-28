@@ -11,9 +11,9 @@ import os
 # ==============================
 # ✅ CONFIGURATION
 # ==============================
-#SEARCH_TERMS = ["credit card"]
+SEARCH_TERMS = ["credit card"]
 #SEARCH_TERMS = ["drugs forum"]
-SEARCH_TERMS = ["weapons"]
+#SEARCH_TERMS = ["weapons"]
 MAX_LINKS = 800
 
 HEADERS = {
@@ -33,7 +33,7 @@ uri = os.getenv(
 )
 
 client = MongoClient(uri)
-db = client["darkweb_pipeline_c2"]
+db = client["darkweb_pipeline_c1"]
 collection = db["links_data"]
 
 print(f"[MongoDB] Connected to cluster: {uri.split('@')[-1].split('/')[0]}")

@@ -1,15 +1,20 @@
 from pymongo import MongoClient
 import os
 
-def load_flattened_fingerprints():
+def load_flattened_fingerprints(db_name="darkweb_pipeline"):
     """
     Load and flatten all fingerprints from MongoDB 'fingerprints_data' collection.
     Returns a list of dicts similar to the old file-based loader:
     [{url, title, language, sentiment_score, category, keywords, collected_at, ...}, ...]
+
+    db_name options:
+      - "darkweb_pipeline"    -> Drugs & Forums
+      - "darkweb_pipeline_c1" -> Credit Card
+      - "darkweb_pipeline_c2" -> Weapons
     """
     uri = os.getenv("MONGO_URI", "mongodb+srv://reddyhashish:Hasini120@cluster0.ckmru0d.mongodb.net/capestone")
     client = MongoClient(uri)
-    db = client["darkweb_pipeline"]
+    db = client[db_name]
     collection = db["fingerprints_data"]
 
     all_entries = []
