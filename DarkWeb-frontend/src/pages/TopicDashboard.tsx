@@ -257,7 +257,7 @@ export function TopicDashboard() {
                             <Activity className="w-5 h-5 text-blue-400" />
                             Activity Trends
                         </h3>
-                        <p className="text-sm text-gray-500 mb-4">URLs, keywords, sources, and titles over time</p>
+                        <p className="text-sm text-gray-500 mb-4">Unique domains, titled groups, and mirror clusters over time</p>
                         {trends.length > 0 ? (
                             <ResponsiveContainer width="100%" height={350}>
                                 <LineChart data={trends} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -266,10 +266,9 @@ export function TopicDashboard() {
                                     <YAxis stroke="#6B7280" />
                                     <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '8px' }} />
                                     <Legend />
-                                    <Line type="monotone" dataKey="urls" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} name="URLs" />
-                                    <Line type="monotone" dataKey="keywords" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 3 }} name="Keywords" />
-                                    <Line type="monotone" dataKey="sources" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} name="Sources" />
-                                    <Line type="monotone" dataKey="titles" stroke="#F59E0B" strokeWidth={2} dot={{ r: 3 }} name="Titles" />
+                                    <Line type="monotone" dataKey="unique_domains" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} name="Unique Domains" />
+                                    <Line type="monotone" dataKey="titled_groups" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 3 }} name="Titled Groups" />
+                                    <Line type="monotone" dataKey="mirror_clusters" stroke="#F59E0B" strokeWidth={2} dot={{ r: 3 }} name="Mirror Clusters" />
                                 </LineChart>
                             </ResponsiveContainer>
                         ) : <p className="text-gray-500 text-center py-12">No trend data available</p>}

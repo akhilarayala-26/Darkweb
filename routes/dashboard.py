@@ -5,6 +5,27 @@ from collections import Counter, defaultdict
 from urllib.parse import urlparse
 from pymongo import MongoClient
 import os
+import time
+
+# --- CACHE SETUP ---
+CACHE = {}
+CACHE_TTL = 3600  # 1 hour
+
+def ttl_cache(key_prefix: str, ttl: int = 3600):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            # Flatten args and kwargs into a string key
+            key = f"{key_prefix}_{args}_{kwargs}"
+            now = time.time()
+            if key in CACHE:
+                val, ts = CACHE[key]
+                if now - ts < ttl:
+                    return val
+            val = func(*args, **kwargs)
+            CACHE[key] = (val, now)
+            return val
+        return wrapper
+    return decorator
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -94,24 +115,30 @@ def load_fingerprints(db, start_date: str = None, end_date: str = None):
     print(f"[load_fingerprints] loaded {len(all_entries)} entries")
     return all_entries
 
+@ttl_cache("load_fingerprints", ttl=3600)
+def get_cached_fingerprints(topic_id: str, start: str = None, end: str = None):
+    db = get_db(topic_id)
+    return load_fingerprints(db, start, end)
 
 # ==============================
 # ENDPOINTS
 # ==============================
 
-@router.get("/topics")
-def get_topics():
-    """Return list of available topics with stats."""
+@ttl_cache("get_topics", ttl=3600)
+def _compute_topics():
     topics = []
     client = MongoClient(MONGO_URI)
     for topic_id, info in TOPIC_DB_MAP.items():
         db = client[info["db"]]
-        fp_count = 0
-        for doc in db["fingerprints_data"].find({}, {"content": 1}):
-            content = doc.get("content", {})
-            for item in content.values():
-                if isinstance(item, dict):
-                    fp_count += len(item.get("records", []))
+        pipeline = [
+            {"$project": {"content_array": {"$objectToArray": "$content"}}},
+            {"$unwind": "$content_array"},
+            {"$project": {"records_count": {"$size": {"$ifNull": ["$content_array.v.records", []]}}}},
+            {"$group": {"_id": None, "total": {"$sum": "$records_count"}}}
+        ]
+        cursor = db["fingerprints_data"].aggregate(pipeline)
+        res = list(cursor)
+        fp_count = res[0]["total"] if res else 0
 
         group_count = db["grouped_titles_data"].count_documents({})
 
@@ -131,12 +158,17 @@ def get_topics():
         })
     return {"topics": topics}
 
+@router.get("/topics")
+def get_topics():
+    """Return list of available topics with stats."""
+    return _compute_topics()
+
 
 @router.get("/topic/{topic_id}/overview")
 def get_overview(topic_id: str, start: str = None, end: str = None):
     """Summary stats for a topic."""
     db = get_db(topic_id)
-    data = load_fingerprints(db, start, end)
+    data = get_cached_fingerprints(topic_id, start, end)
 
     if not data:
         return {"summary": {}, "message": "No data found for this date range"}
@@ -199,7 +231,7 @@ def get_overview(topic_id: str, start: str = None, end: str = None):
 def get_keywords(topic_id: str, start: str = None, end: str = None, limit: int = 20):
     """Top keywords for a topic, filtered by date."""
     db = get_db(topic_id)
-    data = load_fingerprints(db, start, end)
+    data = get_cached_fingerprints(topic_id, start, end)
 
     all_keywords = []
     for item in data:
@@ -228,7 +260,7 @@ def get_groups(topic_id: str, start: str = None, end: str = None):
         return {"groups": [], "total": 0}
 
     # Load fingerprints to get content metadata per title
-    fingerprints = load_fingerprints(db, start, end)
+    fingerprints = get_cached_fingerprints(topic_id, start, end)
     title_meta = defaultdict(lambda: {
         "keywords": [], "sentiments": [], "languages": [],
         "categories": [], "page_sizes": [], "load_times": []
@@ -291,7 +323,7 @@ def get_groups(topic_id: str, start: str = None, end: str = None):
 def get_domains(topic_id: str, start: str = None, end: str = None):
     """Unique domains grouped by day."""
     db = get_db(topic_id)
-    data = load_fingerprints(db, start, end)
+    data = get_cached_fingerprints(topic_id, start, end)
 
     grouped = defaultdict(lambda: defaultdict(list))
     for rec in data:
@@ -327,7 +359,7 @@ def get_domains(topic_id: str, start: str = None, end: str = None):
 def get_sentiment(topic_id: str, start: str = None, end: str = None):
     """Sentiment distribution and time series."""
     db = get_db(topic_id)
-    data = load_fingerprints(db, start, end)
+    data = get_cached_fingerprints(topic_id, start, end)
 
     positive = neutral = negative = 0
     daily_sentiment = defaultdict(list)
@@ -366,15 +398,12 @@ def get_sentiment(topic_id: str, start: str = None, end: str = None):
 
 @router.get("/topic/{topic_id}/trends")
 def get_trends(topic_id: str, start: str = None, end: str = None):
-    """Time-based trends: URLs, keywords, sources, titles over time."""
+    """Time-based trends: Unique Domains, Titled Groups, Mirror Clusters over time."""
     db = get_db(topic_id)
-    data = load_fingerprints(db, start, end)
+    data = get_cached_fingerprints(topic_id, start, end)
 
-    trends_map = defaultdict(lambda: {"urls": 0, "keywords": 0, "sources": 0, "titles": 0})
-    seen_titles = defaultdict(set)
-    seen_sources = defaultdict(set)
-    seen_keywords = defaultdict(set)
-
+    # 1. Calculate Daily Unique Domains from fingerprints
+    seen_domains = defaultdict(set)
     for entry in data:
         collected_at = entry.get("collected_at")
         if not collected_at:
@@ -383,30 +412,48 @@ def get_trends(topic_id: str, start: str = None, end: str = None):
             date_key = str(collected_at).split("T")[0]
         except Exception:
             continue
-
-        trends_map[date_key]["urls"] += 1
-
-        title = entry.get("title")
+            
         url = entry.get("url", "")
-        source = urlparse(url).netloc if url else None
-        keywords = entry.get("keywords", [])
+        if url:
+            try:
+                domain = urlparse(url).netloc
+                if domain:
+                    seen_domains[date_key].add(domain)
+            except Exception:
+                pass
 
-        if title:
-            seen_titles[date_key].add(title)
-        if source:
-            seen_sources[date_key].add(source)
-        for k in keywords:
-            if isinstance(k, str):
-                seen_keywords[date_key].add(k)
+    # 2. Fetch Daily Titled Groups and Mirror Clusters
+    # We query the collections and create maps of date -> count
+    
+    # Titled groups
+    groups_by_date = {}
+    query = {}
+    if start or end:
+        date_filter = {}
+        if start: date_filter["$gte"] = start
+        if end: date_filter["$lte"] = end
+        if date_filter: query["_id"] = date_filter
+        
+    for doc in db["grouped_titles_data"].find(query, {"_id": 1, "total_groups": 1}):
+        date_key = str(doc.get("_id")).split("T")[0]
+        groups_by_date[date_key] = doc.get("total_groups", 0)
 
+    # Mirror clusters
+    mirrors_by_date = {}
+    for doc in db["mirror_data"].find(query, {"_id": 1, "summary.total_mirror_clusters": 1}):
+        date_key = str(doc.get("_id")).split("T")[0]
+        mirrors_by_date[date_key] = doc.get("summary", {}).get("total_mirror_clusters", 0)
+
+    # 3. Combine into a timeline
+    all_dates = set(seen_domains.keys()) | set(groups_by_date.keys()) | set(mirrors_by_date.keys())
+    
     trends = []
-    for date_key in sorted(trends_map.keys()):
+    for date_key in sorted(all_dates):
         trends.append({
             "date": date_key,
-            "urls": trends_map[date_key]["urls"],
-            "keywords": len(seen_keywords[date_key]),
-            "sources": len(seen_sources[date_key]),
-            "titles": len(seen_titles[date_key]),
+            "unique_domains": len(seen_domains.get(date_key, set())),
+            "titled_groups": groups_by_date.get(date_key, 0),
+            "mirror_clusters": mirrors_by_date.get(date_key, 0),
         })
 
     return {"trends": trends}
@@ -436,7 +483,7 @@ def get_mirrors(topic_id: str):
 def get_actors(topic_id: str, start: str = None, end: str = None):
     """Extract actor intelligence: BTC wallets, PGP keys, emails."""
     db = get_db(topic_id)
-    data = load_fingerprints(db, start, end)
+    data = get_cached_fingerprints(topic_id, start, end)
 
     btc_wallets = Counter()
     pgp_keys = []
@@ -493,7 +540,7 @@ def get_evolution(topic_id: str, start: str = None, end: str = None):
         └── ...
     """
     db = get_db(topic_id)
-    data = load_fingerprints(db, start, end)
+    data = get_cached_fingerprints(topic_id, start, end)
 
     # Step 1: Build url -> { dates, title, metadata }
     url_map = {}
@@ -595,7 +642,7 @@ def get_evolution(topic_id: str, start: str = None, end: str = None):
 def get_repeated_titles(topic_id: str, start: str = None, end: str = None):
     """Titles appearing across multiple days."""
     db = get_db(topic_id)
-    data = load_fingerprints(db, start, end)
+    data = get_cached_fingerprints(topic_id, start, end)
 
     if not data:
         return {"repeated": []}

@@ -35,7 +35,7 @@ export function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
     return (
         <div className="flex items-center gap-3 flex-wrap">
             <Calendar className="w-4 h-4 text-gray-400" />
-            {['all'].map((p) => (
+            {['7', '14', '30', 'all'].map((p) => (
                 <button
                     key={p}
                     onClick={() => handlePreset(p)}
