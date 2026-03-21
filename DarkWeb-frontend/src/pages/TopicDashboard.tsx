@@ -9,7 +9,7 @@ import {
 import {
     ArrowLeft, Globe, FileText, TrendingUp, Shield, Key,
     Mail, Bitcoin, ChevronDown, ChevronRight, GitBranch,
-    Activity, Search, Copy, Layers,
+    Activity, Search, Copy, Layers, Calendar,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '../config';
@@ -37,6 +37,14 @@ export function TopicDashboard() {
     const [mirrors, setMirrors] = useState<any>({ clusters: [], summary: {} });
     const [actors, setActors] = useState<any>({});
     const [evolution, setEvolution] = useState<any>({ evolution_groups: [], available_dates: [], total_urls: 0 });
+
+    // Link Activity states
+    const [titleList, setTitleList] = useState<any[]>([]);
+    const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
+    const [titleSearch, setTitleSearch] = useState('');
+    const [linkActivity, setLinkActivity] = useState<any>(null);
+    const [linkActivityLoading, setLinkActivityLoading] = useState(false);
+    const [showTitleDropdown, setShowTitleDropdown] = useState(false);
 
     // UI states
     const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
@@ -83,7 +91,30 @@ export function TopicDashboard() {
             setEvolution(ev || { evolution_groups: [], available_dates: [], total_urls: 0 });
         }).catch(e => console.error('Error loading dashboard:', e))
             .finally(() => setLoading(false));
+
+        // Fetch grouped title list for Link Activity tab
+        fetch(buildUrl('link-activity'))
+            .then(r => r.json())
+            .then(d => setTitleList(d.titles || []))
+            .catch(e => console.error('Error loading titles:', e));
     }, [topicId, dateRange.start, dateRange.end]);
+
+    // Fetch link activity when title is selected
+    useEffect(() => {
+        if (!topicId || !selectedTitle) {
+            setLinkActivity(null);
+            return;
+        }
+        const params = new URLSearchParams({ title: selectedTitle });
+        if (dateRange.start) params.set('start', dateRange.start);
+        if (dateRange.end) params.set('end', dateRange.end);
+        setLinkActivityLoading(true);
+        fetch(`${API_BASE_URL}/dashboard/topic/${topicId}/link-activity?${params}`)
+            .then(r => r.json())
+            .then(d => setLinkActivity(d))
+            .catch(e => console.error('Error loading link activity:', e))
+            .finally(() => setLinkActivityLoading(false));
+    }, [topicId, selectedTitle, dateRange.start, dateRange.end]);
 
     if (loading) {
         return (
@@ -106,12 +137,17 @@ export function TopicDashboard() {
         { name: 'Negative', value: sentiment.distribution.negative, color: SENTIMENT_COLORS.negative },
     ] : [];
 
+    const filteredTitleList = titleList.filter((d: any) =>
+        d.title.toLowerCase().includes(titleSearch.toLowerCase())
+    ).slice(0, 50);
+
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Activity },
         { id: 'groups', label: 'Grouped Titles', icon: FileText },
         { id: 'mirrors', label: 'Mirrors', icon: Layers },
         { id: 'actors', label: 'Actor Intel', icon: Key },
         { id: 'evolution', label: 'Evolution', icon: GitBranch },
+        { id: 'link-activity', label: 'Link Activity', icon: Calendar },
     ];
 
     return (
@@ -698,6 +734,230 @@ export function TopicDashboard() {
                             </div>
                         )}
                     </Card>
+                </motion.div>
+            )}
+
+            {/* LINK ACTIVITY TAB */}
+            {activeTab === 'link-activity' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                    {/* Title Search */}
+                    <Card className="p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Calendar className="w-6 h-6 text-teal-400" />
+                            <div>
+                                <h3 className="text-lg font-semibold text-white">Link Activity Heatmap</h3>
+                                <p className="text-sm text-gray-500">Select a grouped title to see how its links are active across days</p>
+                            </div>
+                        </div>
+
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search for a grouped title..."
+                                value={titleSearch}
+                                onChange={(e) => {
+                                    setTitleSearch(e.target.value);
+                                    setShowTitleDropdown(true);
+                                }}
+                                onFocus={() => setShowTitleDropdown(true)}
+                                className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-teal-500 transition-colors"
+                            />
+                            {selectedTitle && (
+                                <button
+                                    onClick={() => {
+                                        setSelectedTitle(null);
+                                        setTitleSearch('');
+                                        setLinkActivity(null);
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded transition-colors"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Title Dropdown */}
+                        <AnimatePresence>
+                            {showTitleDropdown && !selectedTitle && filteredTitleList.length > 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                    className="mt-2 max-h-64 overflow-y-auto border border-gray-700 rounded-lg bg-gray-800 divide-y divide-gray-700/50"
+                                >
+                                    {filteredTitleList.map((d: any, i: number) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => {
+                                                setSelectedTitle(d.title);
+                                                setTitleSearch(d.title);
+                                                setShowTitleDropdown(false);
+                                            }}
+                                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-700/50 transition-colors text-left"
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <FileText className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                                                <span className="text-sm text-gray-200 truncate">{d.title}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                                                <span className="px-2 py-0.5 bg-teal-500/10 text-teal-400 text-xs font-semibold rounded">{d.total_links} links</span>
+                                                <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-semibold rounded">{d.active_days}d</span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {showTitleDropdown && !selectedTitle && titleSearch && filteredTitleList.length === 0 && (
+                            <p className="text-gray-500 text-sm mt-3 text-center">No titles matching "{titleSearch}"</p>
+                        )}
+                    </Card>
+
+                    {/* Loading State */}
+                    {linkActivityLoading && (
+                        <div className="flex items-center justify-center py-12">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400"></div>
+                            <p className="text-gray-400 ml-4">Loading link activity...</p>
+                        </div>
+                    )}
+
+                    {/* Results */}
+                    {!linkActivityLoading && linkActivity && selectedTitle && (
+                        <>
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                {[
+                                    { label: 'Total Links', value: linkActivity.summary?.total_links || 0, color: '#14B8A6' },
+                                    { label: 'Avg Active Days', value: linkActivity.summary?.avg_active_days?.toFixed(1) || '0', color: '#3B82F6' },
+                                    { label: 'Stability Score', value: ((linkActivity.summary?.stability_score || 0) * 100).toFixed(0) + '%', color: linkActivity.summary?.stability_score > 0.5 ? '#10B981' : '#F59E0B' },
+                                    { label: 'Date Range', value: `${linkActivity.summary?.total_dates || 0} days`, color: '#8B5CF6' },
+                                ].map((m, i) => (
+                                    <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
+                                        <Card className="p-5">
+                                            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">{m.label}</p>
+                                            <p className="text-2xl font-bold mt-2" style={{ color: m.color }}>{m.value}</p>
+                                        </Card>
+                                    </motion.div>
+                                ))}
+                            </div>
+
+                            {/* Heatmap */}
+                            {linkActivity.links?.length > 0 ? (
+                                <Card className="p-6">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <Activity className="w-5 h-5 text-teal-400" />
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-white">Activity Heatmap</h3>
+                                            <p className="text-sm text-gray-500">
+                                                {linkActivity.links.length} links across {linkActivity.dates?.length || 0} days
+                                                — <span className="text-teal-400 text-xs">{selectedTitle}</span>
+                                            </p>
+                                        </div>
+                                        {/* Legend */}
+                                        <div className="ml-auto flex items-center gap-3">
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-3 h-3 rounded-sm bg-teal-500" />
+                                                <span className="text-xs text-gray-400">Active</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-3 h-3 rounded-sm bg-gray-800 border border-gray-700" />
+                                                <span className="text-xs text-gray-400">Inactive</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-x-auto">
+                                        <div className="min-w-fit">
+                                            {/* Date Headers */}
+                                            <div className="flex items-end gap-0.5 mb-1 pl-[260px]">
+                                                {linkActivity.dates?.map((date: string, di: number) => (
+                                                    <div key={di} className="flex-shrink-0 w-8 text-center">
+                                                        <span className="text-[9px] text-gray-500 font-mono whitespace-nowrap" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                                                            {date.slice(5)}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Link Rows */}
+                                            <div className="space-y-0.5 max-h-[600px] overflow-y-auto">
+                                                {linkActivity.links.slice(0, 100).map((link: any, li: number) => {
+                                                    const activeDatesSet = new Set(link.active_dates || []);
+                                                    return (
+                                                        <motion.div
+                                                            key={li}
+                                                            initial={{ opacity: 0 }}
+                                                            animate={{ opacity: 1 }}
+                                                            transition={{ delay: Math.min(li * 0.01, 0.5) }}
+                                                            className="flex items-center gap-0.5 group"
+                                                        >
+                                                            {/* Link Domain Label */}
+                                                            <div className="w-[256px] flex-shrink-0 flex items-center gap-2 pr-2">
+                                                                <div className="w-5 h-5 bg-gradient-to-br from-teal-500 to-cyan-600 rounded flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">
+                                                                    {li + 1}
+                                                                </div>
+                                                                <span className="text-[11px] text-gray-400 font-mono truncate group-hover:text-gray-200 transition-colors" title={link.url}>
+                                                                    {link.domain || link.url?.slice(0, 35)}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Activity Cells */}
+                                                            {linkActivity.dates?.map((date: string, di: number) => {
+                                                                const isActive = activeDatesSet.has(date);
+                                                                return (
+                                                                    <div
+                                                                        key={di}
+                                                                        className={`flex-shrink-0 w-8 h-6 rounded-sm transition-all cursor-default ${
+                                                                            isActive
+                                                                                ? 'bg-teal-500/80 hover:bg-teal-400 shadow-sm shadow-teal-500/20'
+                                                                                : 'bg-gray-800/60 hover:bg-gray-700/60 border border-gray-800'
+                                                                        }`}
+                                                                        title={`${link.domain}\n${link.url}\n${date}: ${isActive ? '✅ Active' : '⚫ Inactive'}${isActive && link.sentiment_avg ? `\nSentiment: ${link.sentiment_avg}` : ''}`}
+                                                                    />
+                                                                );
+                                                            })}
+
+                                                            {/* Active days count */}
+                                                            <span className="text-[10px] text-gray-500 ml-2 flex-shrink-0 font-mono">
+                                                                {link.total_active_days}/{linkActivity.dates?.length || 0}
+                                                            </span>
+                                                        </motion.div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {linkActivity.links.length > 100 && (
+                                                <p className="text-xs text-gray-500 text-center mt-4">
+                                                    Showing first 100 of {linkActivity.links.length} links
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Card>
+                            ) : (
+                                <Card className="p-12">
+                                    <div className="text-center">
+                                        <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                                        <p className="text-gray-500">No link activity data found for this title</p>
+                                    </div>
+                                </Card>
+                            )}
+                        </>
+                    )}
+
+                    {/* No title selected state */}
+                    {!selectedTitle && !linkActivityLoading && (
+                        <Card className="p-12">
+                            <div className="text-center">
+                                <Search className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                                <p className="text-gray-400 text-lg font-medium">Select a grouped title above</p>
+                                <p className="text-gray-600 text-sm mt-2">Search and select a grouped title to view its link activity heatmap</p>
+                                {titleList.length > 0 && (
+                                    <p className="text-gray-600 text-xs mt-4">{titleList.length} grouped titles available</p>
+                                )}
+                            </div>
+                        </Card>
+                    )}
                 </motion.div>
             )}
         </div>

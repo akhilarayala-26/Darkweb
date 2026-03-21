@@ -685,3 +685,161 @@ def get_repeated_titles(topic_id: str, start: str = None, end: str = None):
 
     result.sort(key=lambda x: x["unique_days"], reverse=True)
     return {"repeated": result}
+
+
+@router.get("/topic/{topic_id}/link-activity")
+def get_link_activity(
+    topic_id: str,
+    title: Optional[str] = None,
+    start: str = None,
+    end: str = None,
+):
+    """
+    Temporal link activity analysis for a specific grouped title.
+
+    Without `title`: returns list of available grouped titles with stats.
+    With `title`: returns per-link daily activity heatmap data for that title.
+    """
+    db = get_db(topic_id)
+
+    # Load grouped titles
+    query = {}
+    if start or end:
+        date_filter = {}
+        if start:
+            date_filter["$gte"] = start
+        if end:
+            date_filter["$lte"] = end
+        if date_filter:
+            query["_id"] = date_filter
+
+    # Gather all grouped titles across all dates
+    all_grouped = {}  # title -> set of URLs
+    for doc in db["grouped_titles_data"].find(query, {"_id": 1, "content": 1}):
+        content = doc.get("content", {})
+        for t, urls in content.items():
+            if t not in all_grouped:
+                all_grouped[t] = set()
+            for u in urls:
+                all_grouped[t].add(u)
+
+    if not title:
+        # Return list of grouped titles
+        data = get_cached_fingerprints(topic_id, start, end)
+
+        # Build URL -> dates from fingerprints for active day counts
+        url_dates = defaultdict(set)
+        for entry in data:
+            url = entry.get("url", "")
+            collected_at = entry.get("collected_at", "")
+            if url and collected_at:
+                url_dates[url].add(str(collected_at).split("T")[0])
+
+        titles_list = []
+        for t, urls in all_grouped.items():
+            active_days = set()
+            for u in urls:
+                active_days.update(url_dates.get(u, set()))
+            titles_list.append({
+                "title": t,
+                "total_links": len(urls),
+                "active_days": len(active_days),
+            })
+        titles_list.sort(key=lambda x: x["total_links"], reverse=True)
+        return {"titles": titles_list}
+
+    # Title specified — get per-link activity
+    if title not in all_grouped:
+        return {
+            "title": title,
+            "dates": [],
+            "links": [],
+            "summary": {"total_links": 0, "total_dates": 0,
+                        "avg_active_days": 0, "stability_score": 0},
+        }
+
+    title_urls = all_grouped[title]
+
+    # Load fingerprints and build URL -> { dates, domain, sentiments }
+    data = get_cached_fingerprints(topic_id, start, end)
+
+    url_info = {}
+    all_dates = set()
+
+    for entry in data:
+        url = entry.get("url", "")
+        collected_at = entry.get("collected_at", "")
+        if not url or not collected_at or url not in title_urls:
+            continue
+
+        date_key = str(collected_at).split("T")[0]
+        all_dates.add(date_key)
+
+        if url not in url_info:
+            try:
+                domain = urlparse(url).netloc.lower()
+            except Exception:
+                domain = ""
+            url_info[url] = {
+                "dates": set(),
+                "domain": domain,
+                "sentiments": [],
+            }
+
+        url_info[url]["dates"].add(date_key)
+        s = entry.get("sentiment_score", 0)
+        if s is not None:
+            url_info[url]["sentiments"].append(s)
+
+    sorted_all_dates = sorted(all_dates)
+    total_dates = len(sorted_all_dates)
+
+    links_result = []
+    for url in title_urls:
+        info = url_info.get(url)
+        if info:
+            sorted_link_dates = sorted(info["dates"])
+            avg_s = (sum(info["sentiments"]) / len(info["sentiments"])
+                     if info["sentiments"] else 0)
+            links_result.append({
+                "url": url,
+                "domain": info["domain"],
+                "active_dates": sorted_link_dates,
+                "total_active_days": len(sorted_link_dates),
+                "first_seen": sorted_link_dates[0] if sorted_link_dates else None,
+                "last_seen": sorted_link_dates[-1] if sorted_link_dates else None,
+                "sentiment_avg": round(avg_s, 4),
+            })
+        else:
+            # URL exists in grouped titles but no fingerprint data
+            try:
+                domain = urlparse(url).netloc.lower()
+            except Exception:
+                domain = ""
+            links_result.append({
+                "url": url,
+                "domain": domain,
+                "active_dates": [],
+                "total_active_days": 0,
+                "first_seen": None,
+                "last_seen": None,
+                "sentiment_avg": 0,
+            })
+
+    links_result.sort(key=lambda x: x["total_active_days"], reverse=True)
+
+    avg_active = (sum(l["total_active_days"] for l in links_result) /
+                  len(links_result)) if links_result else 0
+    stability = round(avg_active / total_dates, 4) if total_dates else 0
+
+    return {
+        "title": title,
+        "dates": sorted_all_dates,
+        "links": links_result,
+        "summary": {
+            "total_links": len(links_result),
+            "total_dates": total_dates,
+            "avg_active_days": round(avg_active, 2),
+            "stability_score": stability,
+        },
+    }
